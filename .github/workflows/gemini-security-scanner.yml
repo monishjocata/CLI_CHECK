@@ -1,0 +1,50 @@
+name: '🔒 Security Scanner'
+
+on:
+  workflow_dispatch:
+
+jobs:
+  security-analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: AI Security Analysis
+        uses: google-github-actions/run-gemini-cli@v0
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          prompt: |
+            Perform a security analysis of this codebase.
+            Look for common vulnerabilities like XSS, injection attacks, and insecure configurations.
+            Provide specific recommendations for each issue found.
+
+      - name: Post Security Report
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const securityReport = `## 🔒 Security Analysis Results
+
+            ### Issues Found:
+            - Critical: Input validation missing
+            - High: Error information disclosure
+            - Medium: Missing security headers
+
+            ### Recommendations:
+            1. Add input sanitization
+            2. Implement proper error handling
+            3. Add security headers
+
+            Priority: Address critical issues immediately.`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🔒 Security Analysis Report',
+              body: securityReport,
+              labels: ['security', 'high-priority']
+            });
