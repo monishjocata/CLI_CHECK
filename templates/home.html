@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Welcome to Test App</h1>
+<h2>Recent Posts</h2>
+{% for post in posts %}
+<div style="border: 1px solid #ccc; padding: 10px; margin: 10px 0;">
+    <h3>{{ post[1] }}</h3>
+    <p>{{ post[2]|safe }}</p>
+    <small>by {{ post[3] }}</small>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Search</h2>
+<form method="GET">
+    <input type="text" name="q" placeholder="Search..." value="{{ request.args.get('q', '') }}">
+    <button type="submit">Search</button>
+</form>
+
+{% if results %}
+<h3>Search Results:</h3>
+<pre>{{ results }}</pre>
+{% endif %}
+{% endblock %}

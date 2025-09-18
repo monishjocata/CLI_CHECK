@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vulnerable Test App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .nav { margin-bottom: 20px; }
+        .nav a { margin-right: 15px; color: blue; text-decoration: none; }
+        .form-group { margin-bottom: 15px; }
+        .form-group input { width: 200px; padding: 5px; }
+        button { background: blue; color: white; padding: 8px 15px; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="/">Home</a>
+            <a href="/login">Login</a>
+            <a href="/register">Register</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/profile">Profile</a>
+            <a href="/admin">Admin</a>
+            <a href="/search">Search</a>
+        </div>
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

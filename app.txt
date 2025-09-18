@@ -1,0 +1,24 @@
+vulnerable-flask-app/
+├── /
+│   └── /
+│       ├── 
+│       ├── 
+│       ├── 
+│       ├── 
+│       └── 
+├── /
+│   ├── 
+│   ├── 
+│   ├── 
+│   ├── 
+│   ├── 
+│   ├── 
+│   ├── 
+│   └── 
+├── /
+│   └── (create empty directory)
+├── /
+│   └── (create empty directory)
+├── 
+├── 
+└── 

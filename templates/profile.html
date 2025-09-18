@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>User Profile</h2>
+{% if user %}
+<p><strong>Username:</strong> {{ user[1] }}</p>
+<p><strong>Email:</strong> {{ user[2] }}</p>
+<p><strong>Password:</strong> {{ user[3] }}</p>
+<p><strong>Role:</strong> {{ user[4] }}</p>
+{% endif %}
+{% endblock %}
