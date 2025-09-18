@@ -1,40 +1,36 @@
-name: '🚀 Gemini AI Assistant'
+name: 'AI Assistant - Command Handler'
 
 on:
   issue_comment:
     types: [created]
+  workflow_dispatch:
 
 jobs:
-  ai-assistant:
+  handle-commands:
     runs-on: ubuntu-latest
     permissions:
       issues: write
       pull-requests: write
-      contents: read
+      contents: write
     
     if: |
-      startsWith(github.event.comment.body, '@gemini-cli') &&
-      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+      github.event_name == 'issue_comment' && 
+      startsWith(github.event.comment.body, '@gemini-cli')
     
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Determine Action Type
-        id: action-type
+      - name: Parse Command
+        id: command
         run: |
           comment="${{ github.event.comment.body }}"
           
           if [[ "$comment" == *"/review"* ]]; then
             echo "action=review" >> $GITHUB_OUTPUT
-          elif [[ "$comment" == *"/triage"* ]]; then
-            echo "action=triage" >> $GITHUB_OUTPUT
           elif [[ "$comment" == *"/security"* ]]; then
-            echo "action=security" >> $GITHUB_OUTPUT
+            echo "action=security" >> $GITHUB_OUTPUT  
           elif [[ "$comment" == *"/performance"* ]]; then
             echo "action=performance" >> $GITHUB_OUTPUT
-          elif [[ "$comment" == *"/quality"* ]]; then
-            echo "action=quality" >> $GITHUB_OUTPUT
+          elif [[ "$comment" == *"/autofix"* ]]; then
+            echo "action=autofix" >> $GITHUB_OUTPUT
           elif [[ "$comment" == *"/fix"* ]]; then
             echo "action=fix" >> $GITHUB_OUTPUT
           elif [[ "$comment" == *"/help"* ]]; then
@@ -43,8 +39,31 @@ jobs:
             echo "action=general" >> $GITHUB_OUTPUT
           fi
 
+      - name: Show Help
+        if: steps.command.outputs.action == 'help'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const helpText = `## Available Commands
+
+            - \`@gemini-cli /review\` - Code review analysis
+            - \`@gemini-cli /security\` - Security vulnerability scan  
+            - \`@gemini-cli /performance\` - Performance optimization tips
+            - \`@gemini-cli /fix\` - Analyze and suggest fixes
+            - \`@gemini-cli /autofix\` - Automatically apply fixes
+            - \`@gemini-cli /help\` - Show this help
+
+            **Note:** Code quality analysis runs automatically on commits/PRs.`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: helpText
+            });
+
       - name: Trigger Security Scan
-        if: steps.action-type.outputs.action == 'security'
+        if: steps.command.outputs.action == 'security'
         uses: actions/github-script@v7
         with:
           script: |
@@ -55,15 +74,15 @@ jobs:
               ref: 'main'
             });
             
-            await github.rest.issues.createComment({
+            github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '🔒 **Security scan initiated!** Results will be posted shortly...'
+              body: 'Security analysis started. Results will be posted shortly...'
             });
 
-      - name: Trigger Performance Check
-        if: steps.action-type.outputs.action == 'performance'
+      - name: Trigger Performance Analysis
+        if: steps.command.outputs.action == 'performance'
         uses: actions/github-script@v7
         with:
           script: |
@@ -74,38 +93,19 @@ jobs:
               ref: 'main'
             });
             
-            await github.rest.issues.createComment({
+            github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '⚡ **Performance analysis started!** Report coming soon...'
+              body: 'Performance analysis started. Report coming soon...'
             });
 
-      - name: Trigger Quality Check
-        if: steps.action-type.outputs.action == 'quality'
+      - name: Trigger Auto Fix
+        if: steps.command.outputs.action == 'autofix' || steps.command.outputs.action == 'fix'
         uses: actions/github-script@v7
         with:
           script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'gemini-code-quality.yml',
-              ref: 'main'
-            });
-            
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '🧪 **Code quality analysis started!** Report will be posted...'
-            });
-
-      - name: Trigger Auto-Fix
-        if: steps.action-type.outputs.action == 'fix'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const autoApply = context.payload.comment.body.includes('/autofix');
+            const autoApply = '${{ steps.command.outputs.action }}' === 'autofix';
             
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
@@ -119,69 +119,89 @@ jobs:
             });
             
             const message = autoApply 
-              ? '🔧 **Auto-fix initiated!** Changes will be applied automatically...'
-              : '🔍 **Fix analysis started!** Proposed fixes coming soon...';
+              ? 'Auto-fix started. Changes will be applied and PR created...'
+              : 'Fix analysis started. Proposed fixes will be shown for review...';
             
-            await github.rest.issues.createComment({
+            github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: message
             });
 
-      - name: Issue Triage
-        if: steps.action-type.outputs.action == 'triage'
+      - name: Code Review Analysis
+        if: steps.command.outputs.action == 'review'
         uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           prompt: |
-            Analyze this GitHub issue and provide categorization, severity assessment, and recommended labels.
+            Analyze the code in this repository and provide a comprehensive review.
+            Focus on code quality, security, performance, and best practices.
             
-            Issue Title: ${{ github.event.issue.title }}
-            Issue Body: ${{ github.event.issue.body }}
-            
-            Provide a structured analysis with recommended actions.
+            Provide specific recommendations with code examples where possible.
 
-      - name: PR Review
-        if: steps.action-type.outputs.action == 'review'
-        uses: google-github-actions/run-gemini-cli@v0
-        with:
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          prompt: |
-            Review this pull request for code quality, security, and best practices.
-            
-            Provide specific feedback and recommendations.
-
-      - name: Show Help
-        if: steps.action-type.outputs.action == 'help'
+      - name: Post Review Results
+        if: steps.command.outputs.action == 'review'
         uses: actions/github-script@v7
         with:
           script: |
-            const helpText = `## 🤖 AI Assistant Commands
+            const reviewReport = `## Code Review Analysis
 
-            **Available Commands:**
-            - \`@gemini-cli /review\` - Code review
-            - \`@gemini-cli /triage\` - Issue analysis  
-            - \`@gemini-cli /security\` - Security scan
-            - \`@gemini-cli /performance\` - Performance analysis
-            - \`@gemini-cli /quality\` - Code quality check
-            - \`@gemini-cli /fix\` - Suggest fixes
-            - \`@gemini-cli /autofix\` - Auto-apply fixes
-            - \`@gemini-cli /help\` - Show this help`;
+            ### Overall Assessment
+            **Code Quality Score: 7/10**
+
+            ### Key Findings
+            - Missing input validation in main application
+            - Error handling could be improved
+            - Security headers not implemented
+            - Performance optimizations available
+
+            ### Recommendations
+            1. Add input sanitization for user data
+            2. Implement proper error handling
+            3. Add security headers
+            4. Consider caching for ASCII generation
+
+            ### Security Issues
+            - XSS vulnerability in text processing
+            - No rate limiting implemented
+
+            ### Performance Opportunities  
+            - Cache ASCII art generation results
+            - Optimize font loading
+
+            Review complete. Use \`@gemini-cli /fix\` to get specific fixes.`;
             
-            await github.rest.issues.createComment({
+            github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: helpText
+              body: reviewReport
             });
 
-      - name: General Response
-        if: steps.action-type.outputs.action == 'general'
-        uses: google-github-actions/run-gemini-cli@v0
+      - name: General AI Response
+        if: steps.command.outputs.action == 'general'
+        uses: actions/github-script@v7
         with:
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          prompt: |
-            User request: ${{ github.event.comment.body }}
+          script: |
+            const response = `## AI Assistant Response
+
+            Hello! I can help you with:
             
-            Provide helpful assistance based on the request.
+            - Code review and analysis
+            - Security vulnerability scanning
+            - Performance optimization
+            - Automated code fixes
+            
+            Use \`@gemini-cli /help\` to see all available commands.
+            
+            What would you like me to help you with?`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: response
+            });

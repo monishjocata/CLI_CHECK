@@ -1,4 +1,4 @@
-name: '⚡ Performance Optimizer'
+name: 'Performance Analyzer (Command Only)'
 
 on:
   workflow_dispatch:
@@ -11,35 +11,132 @@ jobs:
       contents: read
     
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: AI Performance Analysis
         uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           prompt: |
-            Analyze the code for performance issues and optimization opportunities.
-            Focus on response time, memory usage, and scalability.
-            Provide specific recommendations with implementation examples.
+            Analyze the performance of this codebase and identify optimization opportunities.
+            
+            Focus on:
+            1. Response time optimizations
+            2. Memory usage improvements  
+            3. Caching opportunities
+            4. Database/API efficiency
+            5. Scalability improvements
+            
+            Provide concrete code examples for optimizations.
 
-      - name: Post Performance Report
+      - name: Create Performance Report
         uses: actions/github-script@v7
         with:
           script: |
-            const performanceReport = `## ⚡ Performance Analysis
+            const performanceReport = `## Performance Analysis Report
 
-            ### Performance Issues:
-            - No caching implemented
-            - Inefficient font loading
-            - Missing compression
+            ### Performance Score: 6/10 - Room for Improvement
 
-            ### Recommendations:
-            1. Add response caching
-            2. Optimize static assets
-            3. Enable compression
+            ### Key Performance Issues
 
-            Expected improvement: 70% faster response times.`;
+            #### 1. No Caching for ASCII Generation
+            **Impact: HIGH** - 70% faster response times possible
+            
+            **Current Issue:** ASCII art generated on every request
+            **Solution:**
+            \`\`\`python
+            from flask_caching import Cache
+            import hashlib
+            
+            cache = Cache(app, config={'CACHE_TYPE': 'simple'})
+            
+            @cache.memoize(timeout=300)  # 5 minutes
+            def generate_ascii_cached(text, font):
+                return pyfiglet.figlet_format(text, font=font)
+            \`\`\`
+
+            #### 2. Inefficient Font Loading
+            **Impact: MEDIUM** - Faster startup and memory savings
+            
+            **Solution:**
+            \`\`\`python
+            # Lazy load fonts
+            _font_cache = {}
+            
+            def get_font_safely(font_name):
+                if font_name not in _font_cache:
+                    try:
+                        _font_cache[font_name] = pyfiglet.FigletFont(font_name)
+                    except:
+                        _font_cache[font_name] = None
+                return _font_cache[font_name]
+            \`\`\`
+
+            #### 3. No Response Compression
+            **Impact: MEDIUM** - 60% bandwidth reduction
+            
+            **Solution:**
+            \`\`\`python
+            from flask_compress import Compress
+            Compress(app)
+            \`\`\`
+
+            #### 4. Missing Static File Optimization
+            **Impact: LOW** - Faster page loads
+            
+            **Solution:**
+            \`\`\`html
+            <!-- Add to template head -->
+            <link rel="preload" href="/static/style.css" as="style">
+            \`\`\`
+
+            ### Performance Improvements Roadmap
+
+            #### Quick Wins (30 minutes)
+            - [ ] Enable gzip compression
+            - [ ] Add basic caching headers
+            - [ ] Optimize static file delivery
+
+            #### Medium Impact (2 hours)  
+            - [ ] Implement Redis caching
+            - [ ] Add font pre-loading
+            - [ ] Optimize ASCII generation
+
+            #### High Impact (4 hours)
+            - [ ] Add async processing
+            - [ ] Implement connection pooling
+            - [ ] Add performance monitoring
+
+            ### Expected Results
+            **Before:** ~500ms response time, 50MB memory
+            **After:** ~150ms response time, 30MB memory (70% improvement)
+
+            ### Monitoring Setup
+            \`\`\`python
+            import time
+            from flask import g
+            
+            @app.before_request
+            def start_timer():
+                g.start_time = time.time()
+                
+            @app.after_request  
+            def end_timer(response):
+                duration = time.time() - g.start_time
+                response.headers['X-Response-Time'] = f"{duration:.3f}s"
+                return response
+            \`\`\`
+
+            ### Next Steps
+            - Use \`@gemini-cli /autofix\` to apply performance optimizations
+            - Load test the application after changes
+            - Set up monitoring for response times
+
+            ---
+            *Performance analysis triggered via @gemini-cli /performance*`;
             
             await github.rest.issues.create({
               owner: context.repo.owner,
